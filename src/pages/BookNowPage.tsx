@@ -227,7 +227,7 @@ export default function BookNowPage() {
               Booking Request Received! <span className="text-red-500">&#10084;</span>
             </h1>
             <p className="mt-4 text-stone-600">
-              Thank you for choosing Govinda Pet Center. We have received your pet-care request. Our team will contact you shortly to confirm availability and booking details.
+              Thank you for choosing Govinda Pet Center! We have received your pet-care booking request successfully.
             </p>
             <div className="mt-6 rounded-xl bg-green-50 px-6 py-4">
               <p className="text-sm text-stone-500">Your Booking ID</p>
@@ -235,6 +235,12 @@ export default function BookNowPage() {
                 {success.booking_id}
               </p>
             </div>
+            <p className="mt-4 text-sm text-stone-600">
+              Your booking is not confirmed yet. Our team will check the availability based on your requested dates and service.
+            </p>
+            <p className="mt-2 text-sm text-stone-600">
+              To confirm your booking and check availability, please contact us through WhatsApp using the button below. Our team will assist you with the next steps.
+            </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
                 href={buildWhatsAppUrl(success)}
