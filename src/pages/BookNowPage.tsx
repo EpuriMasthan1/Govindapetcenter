@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   CalendarPlus,
+  Calendar,
   MapPin,
   Loader2,
   CheckCircle,
@@ -18,6 +19,7 @@ import {
   buildWhatsAppUrl,
   buildTelUrl,
   buildMailUrl,
+  buildAdminWhatsAppUrls,
 } from '@/lib/notifications';
 import LocationMap from '@/components/LocationMap';
 
@@ -137,6 +139,7 @@ export default function BookNowPage() {
     if (!form.num_pets || form.num_pets < 1) e.num_pets = 'At least 1 pet is required';
     if (!form.num_days || form.num_days < 1) e.num_days = 'At least 1 day is required';
     if (!form.start_date) e.start_date = 'Start date is required';
+    if (endDate && form.start_date && endDate < form.start_date) e.end_date = 'End date cannot be earlier than the start date';
     if (form.services.length === 0) e.services = 'Please select at least one service';
     if (form.pickup_required && !form.pickup_address.trim()) e.pickup_address = 'Pickup address is required';
     if (form.drop_required && !form.drop_address.trim()) e.drop_address = 'Drop-off address is required';
@@ -185,7 +188,7 @@ export default function BookNowPage() {
       const bookingResult = data as unknown as Booking;
       setSuccess(bookingResult);
 
-      // Send notification to admin (WhatsApp + SMS) via edge function
+      // Send notification to admin (WhatsApp) via edge function
       try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-booking`, {
           method: 'POST',
@@ -198,6 +201,10 @@ export default function BookNowPage() {
       } catch {
         // Notification failure should not block the booking confirmation
       }
+
+      // Open admin WhatsApp notification links with booking details
+      const adminLinks = buildAdminWhatsAppUrls(bookingResult);
+      adminLinks.forEach((url) => window.open(url, '_blank', 'noopener,noreferrer'));
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -220,7 +227,7 @@ export default function BookNowPage() {
               Booking Request Received! <span className="text-red-500">&#10084;</span>
             </h1>
             <p className="mt-4 text-stone-600">
-              Thank you for choosing Govinda Pet Center. We have received your pet-care request. Our team will contact you shortly to confirm availability and booking details.
+              Thank you for choosing Govinda Pet Center! We have received your pet-care booking request successfully.
             </p>
             <div className="mt-6 rounded-xl bg-green-50 px-6 py-4">
               <p className="text-sm text-stone-500">Your Booking ID</p>
@@ -228,6 +235,12 @@ export default function BookNowPage() {
                 {success.booking_id}
               </p>
             </div>
+            <p className="mt-4 text-sm text-stone-600">
+              Your booking is not confirmed yet. Our team will check the availability based on your requested dates and service.
+            </p>
+            <p className="mt-2 text-sm text-stone-600">
+              To confirm your booking and check availability, please contact us through WhatsApp using the button below. Our team will assist you with the next steps.
+            </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
                 href={buildWhatsAppUrl(success)}
@@ -378,21 +391,27 @@ export default function BookNowPage() {
                 />
               </Field>
               <Field label="Preferred Start Date" required error={errors.start_date}>
-                <input
-                  type="date"
-                  className="input-field"
-                  value={form.start_date}
-                  onChange={(e) => update('start_date', e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                />
+                <div className="relative">
+                  <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-green-600" />
+                  <input
+                    type="date"
+                    className="input-field pl-10"
+                    value={form.start_date}
+                    onChange={(e) => update('start_date', e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
               </Field>
-              <Field label="Preferred End Date (Auto-calculated)">
-                <input
-                  type="date"
-                  className="input-field bg-stone-50"
-                  value={endDate}
-                  readOnly
-                />
+              <Field label="Preferred End Date (Auto-calculated)" error={errors.end_date}>
+                <div className="relative">
+                  <Calendar className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-green-600" />
+                  <input
+                    type="date"
+                    className="input-field bg-stone-50 pl-10"
+                    value={endDate}
+                    readOnly
+                  />
+                </div>
                 {endDate && (
                   <p className="mt-1 text-xs text-stone-500">
                     {formatDate(form.start_date)} to {formatDate(endDate)} ({form.num_days} {form.num_days === 1 ? 'day' : 'days'})

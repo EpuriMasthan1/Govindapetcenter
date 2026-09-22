@@ -6,8 +6,8 @@ const OFFERS = [
   {
     icon: Gift,
     emoji: '🎉',
-    title: 'First Booking FREE for New Customers',
-    desc: 'New customers can enjoy a free first eligible pet-care booking.',
+    title: 'First Pickup & Drop FREE',
+    desc: 'New customers can enjoy FREE pickup and drop for their first eligible pet-care booking.',
     note: 'Offer subject to service availability and applicable terms. Call us for details.',
     cta: 'Book Your First Service',
   },

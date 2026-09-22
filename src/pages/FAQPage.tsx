@@ -29,8 +29,8 @@ const FAQS = [
     a: 'We provide 24/7 pet-care assistance. Contact us to confirm availability for your specific requirement.',
   },
   {
-    q: 'Do new customers get a free first booking?',
-    a: 'New customers may receive a free first eligible booking. Contact us for applicable terms and availability.',
+    q: 'Do new customers get free pickup and drop?',
+    a: 'New customers may receive FREE pickup and drop for their first eligible pet-care booking. Contact us for applicable terms and availability.',
   },
   {
     q: 'Do you provide free food for pets?',
