@@ -52,7 +52,7 @@ function buildWhatsAppMessage(b: BookingData): string {
     : "None";
 
   return [
-    "\uD83D\uDC3E *New Pet Booking Request \u2013 Govinda Pet Center*",
+    "*New Pet Booking Request - Govinda Pet Center*",
     "",
     "*Customer Details*",
     `Name: ${b.customer_name || ""}`,
