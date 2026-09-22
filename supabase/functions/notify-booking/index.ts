@@ -1,5 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -27,6 +25,56 @@ interface BookingData {
   additional_requirements?: string;
 }
 
+const ADMIN_NUMBERS = ["917337204484", "917337242347"];
+
+function buildWhatsAppMessage(b: BookingData): string {
+  const services = (b.services || []).join(", ");
+  const petDetails = [
+    `Pet Name: ${b.pet_name || "Not specified"}`,
+    `Pet Type: ${b.pet_type || ""}`,
+    `Breed: ${b.breed || ""}`,
+    `Number of Pets: ${b.num_pets || 1}`,
+  ].join("\n");
+
+  const bookingDetails = [
+    `Service: ${services}`,
+    `Preferred Start Date: ${b.start_date || ""}`,
+    `Preferred End Date: ${b.end_date || "N/A"}`,
+    `Number of Care Days: ${b.num_days || ""}`,
+    `Pickup Required: ${b.pickup_required ? "Yes" : "No"}`,
+    `Drop Required: ${b.drop_required ? "Yes" : "No"}`,
+    `Pickup Address: ${b.pickup_address || "N/A"}`,
+    `Drop Address: ${b.drop_address || "N/A"}`,
+  ].join("\n");
+
+  const additionalInfo = b.additional_requirements?.trim()
+    ? b.additional_requirements.trim()
+    : "None";
+
+  return [
+    "\uD83D\uDC3E *New Pet Booking Request \u2013 Govinda Pet Center*",
+    "",
+    "*Customer Details*",
+    `Name: ${b.customer_name || ""}`,
+    `Phone: ${b.phone || ""}`,
+    `WhatsApp: ${b.whatsapp_number || ""}`,
+    b.email ? `Email: ${b.email}` : "",
+    "",
+    "*Pet Details*",
+    petDetails,
+    "",
+    "*Booking Details*",
+    bookingDetails,
+    "",
+    "*Additional Information*",
+    additionalInfo,
+    "",
+    `Booking ID: ${b.booking_id || "Pending"}`,
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -35,148 +83,20 @@ Deno.serve(async (req: Request) => {
   try {
     const booking: BookingData = await req.json();
 
-    const adminWhatsApp = "917337204484";
-    const adminPhone = "917337242347";
+    const message = buildWhatsAppMessage(booking);
+    const encodedMessage = encodeURIComponent(message);
 
-    // Build WhatsApp notification message
-    const waMessage = [
-      "New Govinda Pet Center Booking",
-      "",
-      `Booking ID: ${booking.booking_id || "Pending"}`,
-      `Customer Name: ${booking.customer_name}`,
-      `Phone: ${booking.phone}`,
-      `WhatsApp: ${booking.whatsapp_number}`,
-      `Pet Name: ${booking.pet_name || "Not specified"}`,
-      `Pet Type: ${booking.pet_type}`,
-      `Breed: ${booking.breed}`,
-      `Number of Pets: ${booking.num_pets}`,
-      `Number of Care Days: ${booking.num_days}`,
-      `Start Date: ${booking.start_date}`,
-      `End Date: ${booking.end_date || "N/A"}`,
-      `Services: ${booking.services.join(", ")}`,
-      `Pickup: ${booking.pickup_required ? "Yes" : "No"}`,
-      `Drop: ${booking.drop_required ? "Yes" : "No"}`,
-      `Pickup Address: ${booking.pickup_address || "N/A"}`,
-      `Drop Address: ${booking.drop_address || "N/A"}`,
-      `Additional Requirements: ${booking.additional_requirements || "None"}`,
-    ].join("\n");
-
-    const waUrl = `https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(waMessage)}`;
-
-    // Build SMS notification message
-    const smsMessage = `New Govinda Pet Center booking received. Booking ID: ${booking.booking_id || "Pending"}. Customer: ${booking.customer_name}. Phone: ${booking.phone}. Pet: ${booking.pet_type}/${booking.breed}. Care days: ${booking.num_days}.`;
-
-    // --- SMS sending ---
-    // SMS provider credentials are configured as Supabase Edge Function secrets:
-    //   SMS_API_KEY   - API key from your SMS provider (e.g. Twilio, MSG91, Fast2SMS)
-    //   SMS_SENDER_ID - Sender ID registered with the SMS provider
-    //   SMS_PROVIDER  - Which provider to use: "twilio", "msg91", or "fast2sms"
-    //
-    // To enable SMS, add these secrets in your Supabase dashboard under
-    // Project Settings > Edge Functions > Secrets, then uncomment the sending code below.
-
-    const smsApiKey = Deno.env.get("SMS_API_KEY");
-    const smsSender = Deno.env.get("SMS_SENDER_ID");
-    const smsProvider = Deno.env.get("SMS_PROVIDER");
-
-    let smsSent = false;
-    let smsError: string | null = null;
-
-    if (smsApiKey && smsSender && smsProvider) {
-      // --- MSG91 ---
-      if (smsProvider === "msg91") {
-        try {
-          const resp = await fetch(`https://api.msg91.com/api/v2/sendsms`, {
-            method: "POST",
-            headers: {
-              "authkey": smsApiKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sender: smsSender,
-              route: "4",
-              country: "91",
-              sms: [{ message: smsMessage, to: [adminPhone] }],
-            }),
-          });
-          smsSent = resp.ok;
-          if (!resp.ok) smsError = await resp.text();
-        } catch (e) {
-          smsError = e instanceof Error ? e.message : String(e);
-        }
-      }
-
-      // --- Twilio ---
-      if (smsProvider === "twilio") {
-        try {
-          const twilioSid = Deno.env.get("TWILIO_SID") || "";
-          const twilioToken = Deno.env.get("TWILIO_TOKEN") || "";
-          const twilioFrom = Deno.env.get("TWILIO_FROM") || smsSender;
-          const auth = btoa(`${twilioSid}:${twilioToken}`);
-          const resp = await fetch(
-            `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Basic ${auth}`,
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: new URLSearchParams({
-                From: twilioFrom,
-                To: `+${adminPhone}`,
-                Body: smsMessage,
-              }),
-            }
-          );
-          smsSent = resp.ok;
-          if (!resp.ok) smsError = await resp.text();
-        } catch (e) {
-          smsError = e instanceof Error ? e.message : String(e);
-        }
-      }
-
-      // --- Fast2SMS ---
-      if (smsProvider === "fast2sms") {
-        try {
-          const resp = await fetch(
-            `https://www.fast2sms.com/dev/bulkV2`,
-            {
-              method: "POST",
-              headers: {
-                authorization: smsApiKey,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                route: "q",
-                message: smsMessage,
-                numbers: adminPhone,
-                sender_id: smsSender,
-              }),
-            }
-          );
-          smsSent = resp.ok;
-          if (!resp.ok) smsError = await resp.text();
-        } catch (e) {
-          smsError = e instanceof Error ? e.message : String(e);
-        }
-      }
-    } else {
-      smsError = "SMS provider not configured. Set SMS_API_KEY, SMS_SENDER_ID, and SMS_PROVIDER secrets in Supabase.";
-    }
-
-    // Store the notification in the database for record
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    // Generate wa.me links for both admin numbers
+    const adminLinks = ADMIN_NUMBERS.map(
+      (num) => `https://wa.me/${num}?text=${encodedMessage}`
     );
 
     return new Response(
       JSON.stringify({
         success: true,
-        whatsapp_url: waUrl,
-        sms_sent: smsSent,
-        sms_error: smsError,
-        sms_message: smsMessage,
+        whatsapp_urls: adminLinks,
+        whatsapp_message: message,
+        admin_numbers: ADMIN_NUMBERS,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
